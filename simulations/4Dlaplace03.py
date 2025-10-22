@@ -12,6 +12,7 @@ c = 3e8            # Speed of light [m/s]
 mu0 = 4e-7 * np.pi # Vacuum permeability [H/m]
 dx = 0.3           # Spatial step [m]
 dt = (dx / c) * 0.5  # Time step [s]
+print("dt =", dt, "[s]")
 
 # --------------------------------------------------------------------
 # --- UPDATE FUNCTION USING 3-BUFFER ROLLING SCHEME ------------------
@@ -91,22 +92,14 @@ def compute_B(Amu, dx):
 Amus = np.zeros((4, 3, 100, 100, 100))
 Jmus = np.zeros((4, 3, 100, 100, 100))
 
-x0, y0, z0 = 50, 50, 50
-sigma = 3.0
-x = np.arange(100)
-y = np.arange(100)
-z = np.arange(100)
-X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+freq=1e8  # Source frequency [Hz]
 
-# Gaussian pulse in scalar potential A0
-for i in range(2):
-    Amus[0, i] = np.exp(-((X - x0)**2 + (Y - y0)**2 + (Z - z0)**2) / (2 * sigma**2))
 
 # --------------------------------------------------------------------
 # --- SIMULATION + VISUALIZATION LOOP --------------------------------
 # --------------------------------------------------------------------
-ns = 100                 # number of time steps
-fps = 50               # frames per second
+ns = 300                 # number of time steps
+fps = 20               # frames per second
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -118,9 +111,25 @@ slice_index = 50
 writer = anim.FFMpegWriter(fps=fps, bitrate=1800)
 X, Y = np.meshgrid(np.arange(100), np.arange(100))
 
+
 with writer.saving(fig, "4D_wave_equation04.mp4", dpi=100):
     for frame in range(2, ns):
         # --- Compute next time step ---
+        
+        I=10e3*np.sin(dt*frame*freq*2*np.pi)
+
+        Jmus[1, 1, 50, 50, 50] = -I
+        Jmus[2, 1, 50, 50, 50] = I
+        
+        Jmus[1, 1, 50, 51, 50] = I
+        Jmus[2, 1, 50, 51, 50] = I
+
+        Jmus[1, 1, 51, 50, 50] = -I
+        Jmus[2, 1, 51, 50, 50] = -I
+
+        Jmus[1, 1, 51, 51, 50] = I
+        Jmus[2, 1, 51, 51, 50] = -I
+        
         Amus[:, 2, 1:-1, 1:-1, 1:-1] = A_update(Amus, Jmus)
 
         # --- Plot current state ---
@@ -133,7 +142,7 @@ with writer.saving(fig, "4D_wave_equation04.mp4", dpi=100):
         ax.set_ylabel("y")
         ax.set_zlabel("A₀ (scalar potential)")
 
-        A0_slice = Amus[0, 2, :, :, slice_index]
+        A0_slice = Amus[1, 2, :, :, slice_index]
         surf = ax.plot_surface(X, Y, A0_slice.T, cmap='viridis', edgecolor='none')
 
         if frame == 2:
